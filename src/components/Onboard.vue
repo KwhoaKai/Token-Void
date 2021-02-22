@@ -43,7 +43,10 @@ export default {
       this.title = "Welcome.";
       setTimeout(() => {
         this.greetingMessage = "Let's begin.";
-        this.show = false;
+        setTimeout(() => {
+          this.show = false;
+          this.$emit("onboard-fadeout");
+        }, 2000);
       }, 2000);
     },
     parsingWallet() {

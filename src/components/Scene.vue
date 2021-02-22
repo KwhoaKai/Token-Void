@@ -15,15 +15,23 @@ export default {
       width: null,
       height: null,
       ethLogoLoaded: false,
+      curScene: this.recievedScene,
     };
   },
   props: {
     userAddress: String,
     tokenInfo: Object,
+    recievedScene: String,
+  },
+  watch: {
+    recievedScene: function (newscene, oldscene) {
+      this.setScene(newscene);
+    },
   },
   mounted() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
+    //this.setScene("idle");
     this.initThree();
     console.log("mounted vis");
 
@@ -41,12 +49,12 @@ export default {
       canvas.width = this.width;
       canvas.height = this.height;
       this.scene = new THREE.Scene();
-      this.scene.background = new THREE.Color("rgb(36, 32, 32)");
+      this.bgCol = new THREE.Color("rgb(31, 33, 33)");
+      this.scene.background = this.bgCol;
       {
-        const color = "rgb(36, 32, 32)"; // white
         const near = 0;
         this.far = 6;
-        this.scene.fog = new THREE.Fog(color, near, this.far);
+        this.scene.fog = new THREE.Fog(this.bgCol, near, this.far);
       }
       this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
       this.camera.position.z = 4;
@@ -60,12 +68,13 @@ export default {
 
       const loader = new GLTFLoader();
       const ethurl = "./ethlogo.gltf";
+      const coinurl = "./coin1.gltf";
 
       loader.load(ethurl, (gltf) => {
         const root = gltf.scene;
         this.introEthLogo = root;
         this.scene.add(this.introEthLogo);
-        console.log("added eth to secene");
+        console.log("added eth to scene");
 
         // from root and below
         const box = new THREE.Box3().setFromObject(root);
@@ -77,15 +86,19 @@ export default {
         this.introEthLogo.scale.multiplyScalar((1 / boxSize) * 2);
         this.introEthLogo.rotation.x += 0.36;
         this.ethLogoLoaded = true;
-        console.log(gltf);
+        // console.log(gltf);
 
         // set the camera to frame the box
         //frameArea(boxSize * 0.5, boxSize, boxCenter, this.camera);
       });
 
+      // loader.load(coinurl, (gltf) => {
+      //   console.log(gltf);
+      // });
+
       let geometry = new THREE.BoxGeometry(1, 1, 1);
       let material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-      this.cube = new THREE.Mesh(geometry, material);
+      //this.cube = new THREE.Mesh(geometry, material);
       //this.scene.add(this.cube);
 
       const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444);
@@ -118,57 +131,69 @@ export default {
     },
 
     handleResize() {
-      this.width = window.innerWidth;
-      this.height = window.innerHeight;
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      // console.log("canvas should've resized");
+    },
+
+    setScene(scene) {
+      this.curScene = scene;
+    },
+
+    updateIdle() {
+      this.delta = this.clock.getDelta();
+      this.time += this.delta;
+
+      let mult;
+      if (!this.userAddress && !this.tokenInfo) {
+        mult = 1;
+      } else if (this.userAddress && !this.tokenInfo) {
+        mult = 4;
+      } else {
+        mult = 15;
+        this.introEthLogo.rotation.y += 0.01 * mult;
+        if (this.far < 60) {
+          this.far += 1;
+          //console.log(this.curScene);
+        }
+      }
+
+      this.introEthLogo.position.y = 0.2 * Math.abs(Math.sin(this.time) * 0.6);
+      this.scene.fog = new THREE.Fog(this.bgCol, 0, this.far);
+    },
+
+    updateIdleFadeout() {
+      //console.log(this.curScene);
+      let mult = 15;
+      this.introEthLogo.rotation.y += 0.01 * mult;
+      this.introEthLogo.position.y = 0.2 * Math.abs(Math.sin(this.time) * 0.6);
+      if (this.far > 0) {
+        this.far -= 1;
+      } else {
+        this.far = 0;
+        setTimeout(() => {
+          this.setScene("main");
+        }, 3000);
+      }
+      //this.far = this.far > 0 ? this.far - 1 : 0;
+      this.scene.fog = new THREE.Fog(this.bgCol, 0, this.far);
+    },
+
+    sceneSpecificAnim() {
+      if (this.curScene == "idle" && this.ethLogoLoaded) {
+        this.updateIdle();
+      } else if (this.curScene == "idleFadeout" && this.ethLogoLoaded) {
+        this.updateIdleFadeout();
+      }
     },
 
     animate() {
-      function resizeRendererToDisplaySize(renderer) {
-        const canvas = renderer.domElement;
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight;
-        const needResize = canvas.width !== width || canvas.height !== height;
-        if (needResize) {
-          console.log("resiszing");
-          renderer.setSize(width, height, false);
-        }
-        return needResize;
-      }
-      if (resizeRendererToDisplaySize(this.renderer)) {
-        const canvas = this.renderer.domElement;
-        this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
-        this.camera.updateProjectionMatrix();
-        this.$nextTick();
-      }
-      this.cube.rotation.y += 0.01;
-
-      if (this.ethLogoLoaded) {
-        this.delta = this.clock.getDelta();
-        this.time += this.delta;
-
-        let mult;
-        if (!this.userAddress && !this.tokenInfo) {
-          mult = 1;
-        } else if (this.userAddress && !this.tokenInfo) {
-          mult = 4;
-        } else {
-          mult = 15;
-          this.introEthLogo.rotation.y += 0.01 * mult;
-          if (this.far < 60) {
-            this.far += 1;
-          }
-        }
-        //console.log(mult);
-        //console.log(this.far);
-
-        this.introEthLogo.position.y =
-          0.2 * Math.abs(Math.sin(this.time) * 0.6);
-        const color = "rgb(36, 32, 32)"; // white
-
-        this.scene.fog = new THREE.Fog(color, 0, this.far);
-      }
+      // Animate specific scene
+      this.sceneSpecificAnim();
       this.renderer.render(this.scene, this.camera);
       requestAnimationFrame(this.animate);
+      // console.log(this.recievedScene, this.curScene);
     },
   },
 };

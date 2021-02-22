@@ -1,7 +1,14 @@
 <template>
   <div id="app">
-    <Onboard v-on:set-onboard-info="setUserInfo" />
-    <Scene :user-address="userAddress" :token-info="tokenInfo" />
+    <Onboard
+      v-on:set-onboard-info="setUserInfo"
+      v-on:onboard-fadeout="idleFadeout"
+    />
+    <Scene
+      :user-address="userAddress"
+      :token-info="tokenInfo"
+      :recievedScene="sentScene"
+    />
   </div>
 </template>
 <script>
@@ -15,16 +22,18 @@ export default {
       userAddress: null,
       tokenInfo: null,
       loadingWallet: false,
+      sentScene: "idle",
     };
   },
   methods: {
-    toggleHi() {
-      this.showHi = !this.showHi;
-    },
     setUserInfo(info) {
       console.log("Updated at top level to: ", info.tokenInfo);
       this.userAddress = info.address;
       this.tokenInfo = info.tokenInfo;
+    },
+    idleFadeout(info) {
+      console.log("Onboard over, fadeout idle scene");
+      this.sentScene = "idleFadeout";
     },
   },
   components: {
